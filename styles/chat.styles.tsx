@@ -21,8 +21,9 @@ export const styles = StyleSheet.create({
   },
   username: {
     fontSize: 12,
-    color: COLORS.darkGrey,
+    color: COLORS.white,
     marginBottom: 4,
+    fontWeight:'700'
   },
   messageBubble: {
     borderRadius: 16,

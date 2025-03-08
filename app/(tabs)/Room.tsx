@@ -1,5 +1,5 @@
 import { View, Text, FlatList } from "react-native";
-import React, { useEffect,  } from "react";
+import React, { useEffect, useState } from "react";
 import { setError, setLoading, setRooms } from "@/store/slices/chatSlice";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
@@ -19,6 +19,7 @@ const Room = () => {
     (state: RootState) => state.chat
   );
   const username = useSelector((state: RootState) => state.user.user?.username);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     fetchRooms();
@@ -38,12 +39,19 @@ const Room = () => {
     return <ErrorMessage error={error} onPress={fetchRooms} />;
   }
 
+  const filteredRooms =
+    searchQuery.trim() === ""
+      ? rooms
+      : rooms.filter((room) =>
+          room.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
   return (
     <View style={styles.container}>
       <GradientBG />
-      <CustomHeader />
+      <CustomHeader searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <FlatList
-        data={rooms}
+        data={filteredRooms}
         style={{
           marginTop: 60,
         }}
@@ -61,9 +69,15 @@ const Room = () => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No rooms available</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery.trim() !== ""
+                ? "No matching rooms found"
+                : "No rooms available"}
+            </Text>
             <Text style={styles.emptySubtext}>
-              Create a new room to get started
+              {searchQuery.trim() !== ""
+                ? "Try a different search term"
+                : "Create a new room to get started"}
             </Text>
           </View>
         }

@@ -60,11 +60,10 @@ const Login = () => {
     dispatch(setLoading(true))
 
     try {
-
       const response = await axios.post(`${API_URL}/chat/username`, { username })
       dispatch(setUser({ username: response.data.username, id: response.data.id }))
       router.replace("/(tabs)/Room")
-
+      dispatch(setLoading(false));
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || "An error occurred. Please try again."
       setLocalError(errorMessage)

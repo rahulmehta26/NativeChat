@@ -19,6 +19,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { setError, setLoading } from "@/store/slices/userSlice";
 import { addMessage, setMessages } from "@/store/slices/chatSlice";
+import { PayloadAction } from "@reduxjs/toolkit";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -50,6 +51,7 @@ const Chat = () => {
   const flatListRef = useRef<FlatList>(null);
   const dispatch = useDispatch<AppDispatch>();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [wsConnected, setWsConnected] = useState<boolean>(false)
 
   useEffect(() => {
     fetchMessages();
@@ -63,85 +65,73 @@ const Chat = () => {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [roomId]);
+  }, [roomId, username]);
+
+
 
   const fetchMessages = async () => {
     if (!roomId) return;
 
     dispatch(setLoading(true));
     try {
-      const response = await axios.get(
-        `${API_URL}/chat/rooms/${roomId}/messages`
-      );
-      dispatch(setMessages(response.data.reverse()));
+      const response = await axios.get(`${API_URL}/chat/rooms/${roomId}/messages`);
+      const formattedMessages = response.data.map((msg: any) => ({
+        ...msg,
+        created_at: new Date(msg.created_at).toISOString(), 
+      }));
+      dispatch(setMessages(formattedMessages));
     } catch (err) {
       dispatch(setError("Failed to load messages"));
+    } finally{
+      dispatch(setLoading(false))
     }
   };
 
   const connectWebSocket = () => {
-    if (!roomId || !username) return;
+    if (!roomId || !username || wsRef.current ) return;
 
     const ws = new WebSocket(
-      `ws://chat-api-k4vi.onrender.com/ws/${roomId}/${username}`
+      `${process.env.EXPO_PUBLIC_WEBSOCKET_URI}/${roomId}/${username}`
     );
 
     ws.onopen = () => {
-      console.log("WebSocket Connected");
-      const systemMessage: SystemMessage = {
-        type: "system",
-        content: "Connected to chat",
-        timestamp: new Date().toISOString(),
-      };
-      dispatch(addMessage(systemMessage));
+
+      dispatch(addMessage({ type: "system", content: "Connected to chat", timestamp: new Date().toISOString() }));
+      setWsConnected(true);
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-
-      if (data.event === "join" || data.event === "leave") {
-        const systemMessage: SystemMessage = {
-          type: "system",
-          content: `${data.username} has ${data.event}ed the room`,
-          timestamp: new Date().toISOString(),
-        };
-        dispatch(addMessage(systemMessage));
-      } else if (data.event === "message") {
-        const newMsg: Message = {
+  
+      if (data.event === "message") {
+        dispatch(addMessage({
           id: Date.now().toString(),
           content: data.content,
           username: data.username,
           created_at: new Date().toISOString(),
-        };
-        dispatch(addMessage(newMsg));
+        }));
+      } else if (data.event === "join" || data.event === "leave") {
+        dispatch(addMessage({
+          type: "system",
+          content: `${data.username} has ${data.event}ed the room`,
+          timestamp: new Date().toISOString(),
+        }));
       }
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket Error:", error);
-      dispatch(setError("Connection error. Please try again."));
-
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
+      console.error("WebSocket Error: Retrying in 3 seconds...");
+      if (!wsConnected) {
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
       }
-
-      reconnectTimeoutRef.current = setTimeout(() => {
-        if (ws.readyState === WebSocket.CLOSED) {
-          connectWebSocket();
-        }
-      }, 3000);
     };
 
     ws.onclose = () => {
-      console.log("WebSocket Disconnected");
+      console.log("WebSocket Disconnected, Reconnecting...");
+      setWsConnected(false);
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+      console.log("WebSocket connected, Reconnecting...");
 
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connectWebSocket();
-      }, 3000);
     };
 
     wsRef.current = ws;
@@ -155,13 +145,19 @@ const Chat = () => {
     )
       return;
 
-    const messageData = {
-      event: "message",
-      content: newMessage.trim(),
-    };
+      const messageData = {
+        event: "message",
+        content: newMessage.trim(),
+        username: username || "Unknown",
+        id: Date.now().toString(),
+        created_at: new Date().toISOString(),
+      };
 
-    wsRef.current.send(JSON.stringify(messageData));
-    setNewMessage("");
+      wsRef.current.send(JSON.stringify(messageData));
+
+      dispatch(addMessage(messageData));
+    
+      setNewMessage("");
   };
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
@@ -173,7 +169,7 @@ const Chat = () => {
       );
     }
 
-    const isOwnMessage = item.username === username;
+    const isOwnMessage = username && item.username === username;
 
     return (
       <View
@@ -206,6 +202,7 @@ const Chat = () => {
             { new Date(item.created_at).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
+              hour12:true
             })}
           </Text>
         </View>

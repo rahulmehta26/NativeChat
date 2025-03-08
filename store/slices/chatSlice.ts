@@ -13,12 +13,21 @@ interface Message {
   created_at: string;
 }
 
+interface SystemMessage {
+  type: 'system';
+  content: string;
+  timestamp: string;
+}
+
+type ChatMessage = Message | SystemMessage;
+
 interface ChatState {
   rooms: Room[];
   currentRoom: Room | null;
-  messages: Message[];
+  messages: ChatMessage[];
   loading: boolean;
   error: string | null;
+  wsConnected: boolean;
 }
 
 const initialState: ChatState = {
@@ -27,6 +36,7 @@ const initialState: ChatState = {
   messages: [],
   loading: false,
   error: null,
+  wsConnected: false,
 };
 
 const chatSlice = createSlice({
@@ -47,7 +57,8 @@ const chatSlice = createSlice({
       state.messages = action.payload;
     },
     addMessage: (state, action: PayloadAction<Message>) => {
-      state.messages.push(action.payload);
+      if(!action.payload.content) return;
+      state.messages = [...state.messages, action.payload];
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
@@ -56,9 +67,13 @@ const chatSlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     },
+    setWsConnected: (state, action: PayloadAction<boolean>) => {
+      state.wsConnected = action.payload;
+    },
     clearChat: (state) => {
       state.messages = [];
       state.currentRoom = null;
+      state.wsConnected = false;
     },
   },
 });
@@ -72,5 +87,6 @@ export const {
   setLoading,
   setError,
   clearChat,
+  setWsConnected
 } = chatSlice.actions;
 export default chatSlice.reducer;

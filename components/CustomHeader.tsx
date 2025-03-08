@@ -3,16 +3,24 @@ import {
   TouchableOpacity,
   Animated,
   TextInput,
-  StyleSheet,
+  Text,
 } from "react-native";
 import React, { useRef, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constant/color";
 import { router } from "expo-router";
+import { styles } from "@/styles/header.styles";
 
-const CustomHeader = () => {
+interface CustomHeaderProps {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+}
+
+const CustomHeader: React.FC<CustomHeaderProps> = ({
+  searchQuery,
+  setSearchQuery,
+}) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -83,8 +91,8 @@ const CustomHeader = () => {
           fontSize: 20,
           fontWeight: "900",
           textAlign: "center",
-          transform: [{ translateX: slideAnim }], // Moves left
-          opacity: fadeAnim, // Fades out
+          transform: [{ translateX: slideAnim }],
+          opacity: fadeAnim,
         }}
       >
         Chat Rooms
@@ -122,21 +130,24 @@ const CustomHeader = () => {
         />
 
         {/* Close Button inside Search Bar */}
-        <TouchableOpacity onPress={handleSearchToggle} activeOpacity={0.8}>
-          <MaterialIcons name="close" size={24} color={COLORS.darkGrey} />
-        </TouchableOpacity>
+
+        <View style={styles.clearContainer}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.clearButton}
+            onPress={() => setSearchQuery("")}
+          >
+            <Text style={styles.clearText}>Clear</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleSearchToggle} activeOpacity={0.8}>
+            <MaterialIcons name="close" size={24} color={COLORS.darkGrey} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Header Actions */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          position: "absolute",
-          right: 15,
-          columnGap: 15,
-        }}
-      >
+      <View style={styles.iconContainer}>
         {/* Animated Search Icon */}
         <Animated.View style={{ opacity: searchFadeAnim }}>
           <TouchableOpacity activeOpacity={0.8} onPress={handleSearchToggle}>
@@ -155,29 +166,5 @@ const CustomHeader = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  headerContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 50,
-    height: 60,
-    borderBottomEndRadius: 20,
-    borderBottomStartRadius: 20,
-    borderBottomColor: COLORS.lightGrey,
-    backgroundColor: COLORS.white,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
-});
 
 export default CustomHeader;
